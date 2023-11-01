@@ -14,6 +14,7 @@ from plotly.subplots import make_subplots
 import os
 from perspectives.ood_failure import extract_ood_examples
 import pandas as pd
+import random
 
 DEFAULT_PLOTLY_COLORS = plotly.colors.DEFAULT_PLOTLY_COLORS
 
@@ -489,34 +490,45 @@ def breakdown_plot(selected_perspective, selected_models=None):
         raise ValueError(f"Choose perspective from {PERSPECTIVES}!")
     return fig
 
+def retrieve_fault_demo(model, categories, subfield, curr_examples):
+    if categories == "Out-of-Distribution Robustness":
+        if model not in EXAMPLE_CACHE.keys():
+            EXAMPLE_CACHE[model] = {}
+        if subfield not in EXAMPLE_CACHE[model].keys():
+            examples = extract_ood_examples(model, subfield)
+            random.shuffle(examples)
+            EXAMPLE_CACHE[model][subfield] = examples
+        examples = EXAMPLE_CACHE[model][subfield]
+        if curr_examples + 10 > len(examples):
+            examples = examples
+        else:
+            examples = examples[:curr_examples+10]
+        df = pd.DataFrame.from_records(examples)
+        df = gr.Dataframe(value=df, visible=True, row_count=[curr_examples + 10, "fixed"], col_count=[2, "fixed"])
+        curr_button = gr.Button(value="More examples!", visible=True)
+    else:
+        df = gr.Dataframe(value=pd.DataFrame.from_records([{"Query":"Test Test Test", "Outputs": "Test Test Test"}] * 10), visible=True, row_count=[10, "fixed"], col_count=[2, "fixed"])
+        curr_button = gr.Button(value="More examples!", visible=True)
+    return df, curr_button
 
-
-with gr.Blocks() as demo:
+with gr.Blocks(theme=gr.themes.Soft()) as demo:
     with gr.Column(visible=True) as model_col:
         model_selection = gr.Dropdown(
-            choices=[
-                "hf/mosaicml/mpt-7b-chat",
-                "hf/togethercomputer/RedPajama-INCITE-7B-Instruct",
-                "hf/tiiuae/falcon-7b-instruct",
-                "hf/lmsys/vicuna-7b-v1.3",
-                "hf/chavinlo/alpaca-native",
-                "hf/meta-llama/Llama-2-7b-chat-hf",
-                "openai/gpt-3.5-turbo-0301",
-                "openai/gpt-4-0314"
-            ],
+            choices=models_to_analyze,
             value="openai/gpt-4-0314",
-            label="Select Model"
+            label="Select Model",
+            allow_custom_value=True
         )
         perspectives = gr.CheckboxGroup(
             choices=PERSPECTIVES,
-            label="Select Perspectives"
+            label="Select Scenarios"
         )
         button = gr.Button(value="Submit")
     
     with gr.Column(visible=False) as output_col:
         curr_select = gr.Dropdown(
             choices=[],
-            label="Select Perspectives"
+            label="Select Scenario"
         )
         with gr.Column(visible=False) as output_col2:
             gr.Markdown("# Failure example")
@@ -525,50 +537,43 @@ with gr.Blocks() as demo:
             add_button = gr.Button(value="More examples!", visible=False)
         gr.Markdown("# Overall statistics") 
         plot = gr.Plot()
+        download_button = gr.Button()
   
     def radar(model, categories, categories_all):
-        # if len(categories) == 0: 
-        #     pr=gr.Progress(track_tqdm=True)
-        #     for category in pr.tqdm(categories_all, desc="Running selected perspectives"):
-        #         for i in pr.tqdm(range(15), desc=f"Running {category}"):
-        #             time.sleep(0.1)
+        if len(categories) == 0 and model not in models_to_analyze: 
+            pr=gr.Progress(track_tqdm=True)
+            for category in pr.tqdm(categories_all, desc="Running selected scenarios"):
+                for i in pr.tqdm(range(15), desc=f"Running {category}"):
+                    time.sleep(0.1)
 
         categories_name = ["Main Figure"] + categories_all
         if len(categories) == 0 or categories == "Main Figure":
             fig = main_radar_plot(categories_all, [model])
-            select = gr.Dropdown(choices=categories_name, value="Main Figure", label="Select Perspective")
+            select = gr.Dropdown(choices=categories_name, value="Main Figure", label="Select Scenario")
             demo_col = gr.Column(visible=False)
-            dropdown = gr.Dropdown(choices=[], label="Select Sub-perspectives")
+            dropdown = gr.Dropdown(choices=[], label="Select Subscenario")
+            download=gr.Button(link="/file=report.csv", value="Download Report", visible=True)
         else:
             fig = breakdown_plot(categories, [model])
-            select = gr.Dropdown(choices=categories_name, value=categories, label="Select Perspective")
+            select = gr.Dropdown(choices=categories_name, value=categories, label="Select Scenario")
             demo_col = gr.Column(visible=True)
-            dropdown = gr.Dropdown(choices=TASK_SUBFIELDS[categories], label="Select Sub-perspectives")
-        return {plot: fig, output_col: gr.Column(visible=True), model_col: gr.Column(visible=False), curr_select: select, output_col2: demo_col, perspective_dropdown: dropdown, button:gr.Button(visible=False), model_selection:gr.Dropdown(visible=False)}
+            dropdown = gr.Dropdown(choices=TASK_SUBFIELDS[categories], label="Select Subscenario")
+            download=gr.Button(visible=False)
+        return {plot: fig, output_col: gr.Column(visible=True), model_col: gr.Column(visible=False), curr_select: select, output_col2: demo_col, perspective_dropdown: dropdown, button:gr.Button(visible=False), model_selection:gr.Dropdown(visible=False), df_gr:gr.DataFrame(visible=False), add_button:gr.Button(visible=False), download_button:download}
     
-    def retrieve_fault_demo(model, categories, subfield, df_gr):
-        # print("pass?")
-        if categories == "Out-of-Distribution Robustness":
-            if model not in EXAMPLE_CACHE.keys():
-                EXAMPLE_CACHE[model] = {}
-            if subfield not in EXAMPLE_CACHE[model].keys():
-                examples = extract_ood_examples(model, subfield)
-                EXAMPLE_CACHE[model][subfield] = np.random.shuffle(examples)
-            curr_examples = len(df_gr.value)
-            print(curr_examples)
-            examples = EXAMPLE_CACHE[model][subfield]
-            examples = examples[:curr_examples+10]
-            df = pd.DataFrame.from_records(examples)
-            df_gr =  gr.Dataframe(value=df, visible=True)
-            add_button = gr.Button(value="More examples!", visible=True)
-        # else:
-        #     df_gr = gr.Dataframe(value=pd.DataFrame.from_records([{"Query":"Test Test Test", "Outputs": "Test Test Test"}] * 10), visible=True)
-        #     add_button = gr.Button(value="More examples!", visible=True)
-        return {df_gr: df_gr, add_button: add_button}
-    gr.on(triggers=[button.click, curr_select.change], fn=radar, inputs=[model_selection, curr_select, perspectives], outputs=[plot, output_col, model_col, curr_select, output_col2, perspective_dropdown, button, model_selection])
-    gr.on(triggers=[add_button.click, perspective_dropdown.change], fn=retrieve_fault_demo, inputs=[model_selection, curr_select, perspective_dropdown, df_gr], outputs=[df_gr])
+    def retrieve_new_demo(model, categories, subfield):
+        df, button = retrieve_fault_demo(model, categories, subfield, 0)
+        return {df_gr: df, add_button: button}
+    
+    def retrieve_more_demo(model, categories, subfield, df):
+        df, button = retrieve_fault_demo(model, categories, subfield, len(df))
+        return {df_gr: df, add_button: button}
+        
+    gr.on(triggers=[button.click, curr_select.change], fn=radar, inputs=[model_selection, curr_select, perspectives], outputs=[plot, output_col, model_col, curr_select, output_col2, perspective_dropdown, button, model_selection, df_gr, add_button, download_button])
+    perspective_dropdown.change(fn=retrieve_new_demo, inputs=[model_selection, curr_select, perspective_dropdown], outputs=[df_gr, add_button])
+    add_button.click(fn=retrieve_more_demo, inputs=[model_selection, curr_select, perspective_dropdown, df_gr], outputs=[df_gr, add_button])
 
 if __name__ == "__main__":
-    demo.queue().launch()
+    demo.queue().launch(server_port=8088)
 
 
