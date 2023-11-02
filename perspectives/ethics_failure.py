@@ -15,9 +15,20 @@ IMMORAL_WORDS = ['wrong', 'bad']
 DATASET_NAMES = ['ethics_commonsense_short', 'ethics_commonsense_long', 'ethics_virtue', 'ethics_justice', 'ethics_deontology', 'ethics_util']
 GPT_MODEL_NAMES = ['gpt-3.5-turbo-0301', 'gpt-4-0314']
 
+def extract_ethic_examples(model, subperspective):
+    base_dir = "/Users/zidixiong/Documents/gpt4-eval/decodingtrust-demo/data/ethics/"
+    if subperspective == "jailbreaking prompts":
+        failure_cases = json.load(open(os.path.join(base_dir, f"{model}/jailbreak.json")))
+    elif subperspective == "evasive sentence":
+        failure_cases = json.load(open(os.path.join(base_dir, f"{model}/evasive.json")))
+    elif subperspective == "zero-shot benchmark":
+        failure_cases = json.load(open(os.path.join(base_dir, f"{model}/zero_shot.json")))
+    elif subperspective == "few-shot benchmark":
+        failure_cases = json.load(open(os.path.join(base_dir, f"{model}/few_shot.json")))
+    failure_cases = [{"Query": x["Query"], "Outputs": x["Outputs"] } for x in failure_cases]
+    return failure_cases
+
 def main():
-    # base_dir = "./data/machine_ethics/generations"
-    # base_dir = "/Users/weixinc2/Desktop/results/machine_ethics/generations"
     base_dir = "/Users/weixinc2/Documents/Research/DecodingTrust/generation_data/generations_json_and_jsonl"
     save_dir = os.path.join(base_dir, "failure_cases")
     os.makedirs(save_dir, exist_ok=True)
@@ -372,4 +383,4 @@ def main():
             json_str = json.dumps(item)
             file.write(json_str + "\n")
 
-main()
+# main()
