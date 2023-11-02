@@ -2,17 +2,15 @@ import gradio as gr
 from tqdm import tqdm
 import time
 import json
-import dash
 import numpy as np
-from dash import dcc
 import plotly.colors
-from dash import html
 from itertools import chain
 import plotly.graph_objects as go
-from dash.dependencies import Input, Output
 from plotly.subplots import make_subplots
 import os
 from perspectives.ood_failure import extract_ood_examples
+from perspectives.adv_demo_failure import extract_adv_demo
+from perspectives.ethics_failure import extract_ethic_examples
 import pandas as pd
 import random
 
@@ -489,25 +487,36 @@ def breakdown_plot(selected_perspective, selected_models=None):
     else:
         raise ValueError(f"Choose perspective from {PERSPECTIVES}!")
     return fig
-
+def extract_failure(extract_fn, model, subfield, curr_examples):
+    if model not in EXAMPLE_CACHE.keys():
+        EXAMPLE_CACHE[model] = {}
+    if subfield not in EXAMPLE_CACHE[model].keys():
+        examples = extract_fn(model, subfield)
+        random.shuffle(examples)
+        EXAMPLE_CACHE[model][subfield] = examples
+    examples = EXAMPLE_CACHE[model][subfield]
+    if curr_examples + 10 > len(examples):
+        examples = examples
+        curr_button = gr.Button(value="More examples!", visible=False)
+    else:
+        examples = examples[:curr_examples+10]
+        curr_button = gr.Button(value="More examples!", visible=True)
+    if len(examples) > 0:
+        df = pd.DataFrame.from_records(examples)
+        df = gr.Dataframe(value=df, visible=True, row_count=[curr_examples + 10, "fixed"], col_count=[2, "fixed"], headers=["Query", "Outputs"])
+    else:
+        df = gr.Dataframe(value=pd.DataFrame.from_records([{"Query":"None", "Outputs": "None"}]), visible=True, row_count=[1, "fixed"], col_count=[2, "fixed"], headers=["Query", "Outputs"])
+    return df, curr_button
+    
 def retrieve_fault_demo(model, categories, subfield, curr_examples):
     if categories == "Out-of-Distribution Robustness":
-        if model not in EXAMPLE_CACHE.keys():
-            EXAMPLE_CACHE[model] = {}
-        if subfield not in EXAMPLE_CACHE[model].keys():
-            examples = extract_ood_examples(model, subfield)
-            random.shuffle(examples)
-            EXAMPLE_CACHE[model][subfield] = examples
-        examples = EXAMPLE_CACHE[model][subfield]
-        if curr_examples + 10 > len(examples):
-            examples = examples
-        else:
-            examples = examples[:curr_examples+10]
-        df = pd.DataFrame.from_records(examples)
-        df = gr.Dataframe(value=df, visible=True, row_count=[curr_examples + 10, "fixed"], col_count=[2, "fixed"])
-        curr_button = gr.Button(value="More examples!", visible=True)
+        df, curr_button = extract_failure(extract_ood_examples, model, subfield, curr_examples)
+    elif categories == "Robustness to Adversarial Demonstrations":
+        df, curr_button = extract_failure(extract_adv_demo, model, subfield, curr_examples)
+    elif categories == "Machine Ethics":
+        df, curr_button = extract_failure(extract_ethic_examples, model, subfield, curr_examples)
     else:
-        df = gr.Dataframe(value=pd.DataFrame.from_records([{"Query":"Test Test Test", "Outputs": "Test Test Test"}] * 10), visible=True, row_count=[10, "fixed"], col_count=[2, "fixed"])
+        df = gr.Dataframe(value=pd.DataFrame.from_records([{"Query":"Test Test Test", "Outputs": "Test Test Test"}] * 10), visible=True, row_count=[10, "fixed"], col_count=[2, "fixed"], headers=["Query", "Outputs"])
         curr_button = gr.Button(value="More examples!", visible=True)
     return df, curr_button
 
@@ -574,6 +583,6 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     add_button.click(fn=retrieve_more_demo, inputs=[model_selection, curr_select, perspective_dropdown, df_gr], outputs=[df_gr, add_button])
 
 if __name__ == "__main__":
-    demo.queue().launch(server_port=8088)
+    demo.queue().launch(server_port=8089)
 
 
