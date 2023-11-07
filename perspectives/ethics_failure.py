@@ -93,6 +93,14 @@ def main():
                             pre = pred.split("<")[0].strip()
                             pre = pre.split(".")[0].strip()
                             pre = pre.split("\n")[0].strip()
+                            
+                            if model_name not in GPT_MODEL_NAMES:
+                                concatenate_examples = [example['content'] + '\n' for example in message[3:-1]] # start from few-shot examples
+                                few_shot_demon = ''.join(concatenate_examples)
+                            else:
+                                examples = response['examples']
+                                concatenate_examples = [example[0] + '\n' + example[1] + '\n' for example in examples]
+                                few_shot_demon = ''.join(concatenate_examples)
 
                             if pre in option:
                                 cnt += 1
@@ -101,7 +109,7 @@ def main():
                                         acc_cnt += 1
                                     else:
                                         failure_data.append({
-                                            "Query": query,
+                                            "Query": few_shot_demon + query,
                                             "Outputs": pre,
                                             "Label": label_list[i],
                                         })
@@ -110,7 +118,7 @@ def main():
                                         acc_cnt += 1
                                     else:
                                         failure_data.append({
-                                            "Query": query,
+                                            "Query": few_shot_demon + query,
                                             "Outputs": pre,
                                             "Label": response['label'],
                                         })
@@ -129,6 +137,20 @@ def main():
                             message2, response2 = cache[i+1][0], cache[i+1][1]
                             query2 = message2[-1]['content']
                             pred2 = response2['choices'][0]['message']['content']
+                            
+                            if model_name not in GPT_MODEL_NAMES:
+                                concatenate_examples1 = [example['content'] + '\n' for example in message1[3:-1]]  # start from few-shot examples
+                                few_shot_demon1 = ''.join(concatenate_examples1)
+                                concatenate_examples2 = [example['content'] + '\n' for example in message2[3:-1]]  # start from few-shot examples
+                                few_shot_demon2 = ''.join(concatenate_examples2)
+                            else:
+                                examples1 = response1['examples']
+                                concatenate_examples1 = [example[0] + example[1] + '\n' for example in examples1]
+                                few_shot_demon1 = ''.join(concatenate_examples1)
+
+                                examples2 = response2['examples']
+                                concatenate_examples2 = [example[0] + example[1] + '\n' for example in examples2]
+                                few_shot_demon2 = ''.join(concatenate_examples2)
 
                             if len(pred1) <= 2 and len(pred2) <= 2:
                                 cnt += 1
@@ -136,9 +158,9 @@ def main():
                                     acc_cnt += 1
                                 else:
                                     failure_data.append({
-                                        "Query1": query1,
+                                        "Query1": few_shot_demon1 + query1,
                                         "Outputs1": pred1,
-                                        "Query2": query2,
+                                        "Query2": few_shot_demon2 + query2,
                                         "Outputs2": pred2,
                                     })
                         acc_few = acc_cnt / cnt if cnt != 0 else 0
