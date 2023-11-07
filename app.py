@@ -11,6 +11,8 @@ import os
 from perspectives.ood_failure import extract_ood_examples
 from perspectives.adv_demo_failure import extract_adv_demo
 from perspectives.ethics_failure import extract_ethic_examples
+from perspectives.adv_failure import extract_adv_examples
+from perspectives.toxicity_failure import extract_toxic_samples
 import pandas as pd
 import random
 
@@ -21,6 +23,7 @@ def to_rgba(rgb, alpha=1):
     return 'rgba' + rgb[3:][:-1] + f', {alpha})'
 
 EXAMPLE_CACHE = {}
+EXAMPLE_COUNTER = 0
 
 
 PERSPECTIVES = [
@@ -487,7 +490,7 @@ def breakdown_plot(selected_perspective, selected_models=None):
     else:
         raise ValueError(f"Choose perspective from {PERSPECTIVES}!")
     return fig
-def extract_failure(extract_fn, model, subfield, curr_examples):
+def extract_failure(extract_fn, model, subfield):
     if model not in EXAMPLE_CACHE.keys():
         EXAMPLE_CACHE[model] = {}
     if subfield not in EXAMPLE_CACHE[model].keys():
@@ -495,30 +498,33 @@ def extract_failure(extract_fn, model, subfield, curr_examples):
         random.shuffle(examples)
         EXAMPLE_CACHE[model][subfield] = examples
     examples = EXAMPLE_CACHE[model][subfield]
-    if curr_examples + 10 > len(examples):
-        examples = examples
-        curr_button = gr.Button(value="More examples!", visible=False)
-    else:
-        examples = examples[:curr_examples+10]
-        curr_button = gr.Button(value="More examples!", visible=True)
-    if len(examples) > 0:
-        df = pd.DataFrame.from_records(examples)
-        df = gr.Dataframe(value=df, visible=True, row_count=[curr_examples + 10, "fixed"], col_count=[2, "fixed"], headers=["Query", "Outputs"])
-    else:
-        df = gr.Dataframe(value=pd.DataFrame.from_records([{"Query":"None", "Outputs": "None"}]), visible=True, row_count=[1, "fixed"], col_count=[2, "fixed"], headers=["Query", "Outputs"])
-    return df, curr_button
+    # keys = ["query", "answer"]
+    # query, answer = EXAMPLE_COUNTER // 2, keys[EXAMPLE_COUNTER % 2]
+    # text = examples[query][answer]
+    example = np.random.choice(examples)
+    # history = (example[key] for key in example.keys())
+    history = [[(example[key]) for key in example.keys()]]
+    # print(history)
+    return history
+    # for character in text:
+    #     yield character
+
     
-def retrieve_fault_demo(model, categories, subfield, curr_examples):
+def retrieve_fault_demo(model, categories, subfield):
     if categories == "Out-of-Distribution Robustness":
-        df, curr_button = extract_failure(extract_ood_examples, model, subfield, curr_examples)
+        history = extract_failure(extract_ood_examples, model, subfield)
+    elif categories == "Adversarial Robustness":
+        history = extract_failure(extract_adv_examples, model, subfield)
     elif categories == "Robustness to Adversarial Demonstrations":
-        df, curr_button = extract_failure(extract_adv_demo, model, subfield, curr_examples)
+        history = extract_failure(extract_adv_demo, model, subfield)
     elif categories == "Machine Ethics":
-        df, curr_button = extract_failure(extract_ethic_examples, model, subfield, curr_examples)
-    else:
-        df = gr.Dataframe(value=pd.DataFrame.from_records([{"Query":"Test Test Test", "Outputs": "Test Test Test"}] * 10), visible=True, row_count=[10, "fixed"], col_count=[2, "fixed"], headers=["Query", "Outputs"])
-        curr_button = gr.Button(value="More examples!", visible=True)
-    return df, curr_button
+        history = extract_failure(extract_ethic_examples, model, subfield)
+    elif categories == "Toxicity":
+        history = extract_failure(extract_toxic_samples, model, subfield)
+    # else:
+        # df = gr.Dataframe(value=pd.DataFrame.from_records([{"Query":"Test Test Test", "Outputs": "Test Test Test"}] * 10), visible=True, row_count=[10, "fixed"], col_count=[2, "fixed"], headers=["Query", "Outputs"])
+        # curr_button = gr.Button(value="More examples!", visible=True)
+    return history
 
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
     with gr.Column(visible=True) as model_col:
@@ -539,11 +545,20 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
             choices=[],
             label="Select Scenario"
         )
-        with gr.Column(visible=False) as output_col2:
-            gr.Markdown("# Failure example")
+        with gr.Accordion(visible=False, label="Failure example", open=False) as output_col2:
+            # gr.Markdown("# Failure example")
             perspective_dropdown = gr.Dropdown()
-            df_gr = gr.Dataframe(visible=False)
-            add_button = gr.Button(value="More examples!", visible=False)
+            # chatbot = gr.Dataframe(visible=False)
+            with gr.Column(visible=False) as chatbot_col:
+                chatbot = gr.Chatbot(
+                    label="Failure example",
+                    height=300,
+                )
+            # chatbot = gr.Chatbot(
+            #         elem_id="chatbot", label="Failure examples", height=550, visible=False
+            #     )
+            # regenerate_btn = gr.Button(value="Generate examples", visible=False)
+                regenerate_btn = gr.Button(value="🔄  Regenerate")
         gr.Markdown("# Overall statistics") 
         plot = gr.Plot()
         download_button = gr.Button()
@@ -554,35 +569,49 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
             for category in pr.tqdm(categories_all, desc="Running selected scenarios"):
                 for i in pr.tqdm(range(15), desc=f"Running {category}"):
                     time.sleep(0.1)
+            raise gr.Error("Function not implemented yet!")
 
         categories_name = ["Main Figure"] + categories_all
         if len(categories) == 0 or categories == "Main Figure":
             fig = main_radar_plot(categories_all, [model])
             select = gr.Dropdown(choices=categories_name, value="Main Figure", label="Select Scenario")
-            demo_col = gr.Column(visible=False)
+            demo_col = gr.Accordion(visible=False, label="Failure example", open=False)
             dropdown = gr.Dropdown(choices=[], label="Select Subscenario")
             download=gr.Button(link="/file=report.csv", value="Download Report", visible=True)
         else:
             fig = breakdown_plot(categories, [model])
             select = gr.Dropdown(choices=categories_name, value=categories, label="Select Scenario")
-            demo_col = gr.Column(visible=True)
+            demo_col = gr.Accordion(visible=True, label="Failure example", open=False)
             dropdown = gr.Dropdown(choices=TASK_SUBFIELDS[categories], label="Select Subscenario")
             download=gr.Button(visible=False)
-        return {plot: fig, output_col: gr.Column(visible=True), model_col: gr.Column(visible=False), curr_select: select, output_col2: demo_col, perspective_dropdown: dropdown, button:gr.Button(visible=False), model_selection:gr.Dropdown(visible=False), df_gr:gr.DataFrame(visible=False), add_button:gr.Button(visible=False), download_button:download}
+        return {plot: fig, output_col: gr.Column(visible=True), model_col: gr.Column(visible=False), curr_select: select, output_col2: demo_col, perspective_dropdown: dropdown, button:gr.Button(visible=False), model_selection:gr.Dropdown(visible=False), download_button:download, chatbot_col:gr.Column(visible=False)}
     
-    def retrieve_new_demo(model, categories, subfield):
-        df, button = retrieve_fault_demo(model, categories, subfield, 0)
-        return {df_gr: df, add_button: button}
+    # def retrieve_new_demo(model, categories, subfield):
+    #     df, button = retrieve_fault_demo(model, categories, subfield, 0)
+    #     return {chatbot: df, regenerate_btn: button}
     
-    def retrieve_more_demo(model, categories, subfield, df):
-        df, button = retrieve_fault_demo(model, categories, subfield, len(df))
-        return {df_gr: df, add_button: button}
+    # def retrieve_more_demo(model, categories, subfield, df):
+    #     df, button = retrieve_fault_demo(model, categories, subfield, len(df))
+    #     return {chatbot: df, regenerate_btn: button}
+    def retrieve_input_demo(model, categories, subfield, history):
+        chat = retrieve_fault_demo(model, categories, subfield)
+        return chat
+        # for round, content in enumerate(chat):
+        #     if history[0][round] is None:
+        #         history[0][round] = content
+        #     for character in content:
+        #         time.sleep(0.01)
+        #         history[0][round] += character
+        #         yield history
+    def chatbot_visible():
+        return {chatbot_col: gr.Column(visible=True), chatbot : [[None, None]]}
         
-    gr.on(triggers=[button.click, curr_select.change], fn=radar, inputs=[model_selection, curr_select, perspectives], outputs=[plot, output_col, model_col, curr_select, output_col2, perspective_dropdown, button, model_selection, df_gr, add_button, download_button])
-    perspective_dropdown.change(fn=retrieve_new_demo, inputs=[model_selection, curr_select, perspective_dropdown], outputs=[df_gr, add_button])
-    add_button.click(fn=retrieve_more_demo, inputs=[model_selection, curr_select, perspective_dropdown, df_gr], outputs=[df_gr, add_button])
+    gr.on(triggers=[button.click, curr_select.change], fn=radar, inputs=[model_selection, curr_select, perspectives], outputs=[plot, output_col, model_col, curr_select, output_col2, perspective_dropdown, button, model_selection, download_button, chatbot_col])
+    # perspective_dropdown.change(fn=retrieve_new_demo, inputs=[model_selection, curr_select, perspective_dropdown], outputs=[chatbot, regenerate_btn])
+    # regenerate_btn.click(fn=retrieve_more_demo, inputs=[model_selection, curr_select, perspective_dropdown, chatbot], outputs=[chatbot, regenerate_btn])
+    gr.on(triggers=[perspective_dropdown.change, regenerate_btn.click], fn=chatbot_visible, outputs=[chatbot_col, chatbot]).then(fn=retrieve_input_demo, inputs=[model_selection, curr_select, perspective_dropdown, chatbot], outputs=chatbot)
 
 if __name__ == "__main__":
-    demo.queue().launch(server_port=8089)
+    demo.queue().launch(server_port=8088)
 
 

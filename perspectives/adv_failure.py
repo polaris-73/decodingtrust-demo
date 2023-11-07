@@ -3,21 +3,21 @@ from glob import glob
 import numpy as np, pandas as pd
 
 
-RESULT_DIR = "./data/results/adv-glue-plus-plus/"
+RESULT_DIR = "./data/adv-glue-plus-plus"
 BASE_MODELS = ["alpaca", "vicuna", "stable-vicuna"]
 
 
-def parse_examples():
-    benign_files = glob(os.path.join(RESULT_DIR, "**", "*.json"), recursive=True)
-    target_models = [os.path.relpath(os.path.dirname(x), RESULT_DIR) for x in benign_files]
+def parse_examples(model):
+    # benign_files = glob(os.path.join(RESULT_DIR, "**", "*.json"), recursive=True)
+    # target_models = [os.path.relpath(os.path.dirname(x), RESULT_DIR) for x in benign_files]
 
     df = {
         "BaseModel": [], "TargetModel": [], "Transferability": [], "Accuracy": [], "AccuracyNoRefusal": [],
         "Task": [], "RR+NE": [], "TaskDataCount": []
     }
 
-    failures = {x: {} for x in target_models}
-    for target_model in target_models:
+    failures = {model: {}}
+    for target_model in [model]:
         for base_model in BASE_MODELS:
             if not os.path.exists(os.path.join(RESULT_DIR, target_model, f"{base_model}-demo.json")):
                 continue
@@ -69,11 +69,11 @@ def parse_examples():
     return failures
 
 
-def extract_ood_examples(model, sub_perspective):
-    failures = parse_examples()
+def extract_adv_examples(model, sub_perspective):
+    failures = parse_examples(model)
     return failures[model][sub_perspective]
 
 
 if __name__ == "__main__":
-    failure_examples = extract_ood_examples("meta-llama/Llama-2-7b-chat-hf", "mnli")
+    failure_examples = extract_adv_examples("meta-llama/Llama-2-7b-chat-hf", "mnli")
     print(failure_examples)

@@ -1,8 +1,23 @@
 import json
 import joblib
 
+def extract_toxic_samples(model, subperspective):
+    # remove adv and benign from subperspective
+    if "adv" in subperspective:
+        template = 1
+        config = subperspective.split("-adv")[0]
+    else:
+        template = 0
+        config = subperspective.split("-benign")[0]
+    
+    load_path = f"./data/toxicity/{model}/{config}-template-{template}-generations.failures.jsonl"
+    with open(load_path, "r") as f:
+        toxic_samples = [json.loads(line) for line in f.readlines()]
+    toxic_samples = [{"Query": sample["context"], "Outputs": sample["continuation"]} for sample in toxic_samples]
+    return toxic_samples
+    
 
-def extract_toxic_samples(cache_path):
+def toxic_to_jsonline(cache_path):
     data = joblib.load(cache_path)
     toxic_samples = []
     for sample in data:
@@ -44,7 +59,7 @@ if __name__ == '__main__':
                 data_path = f"./results/toxicity/user_prompts/generations/{model}/{config}-template-{template}-generations.jsonl.out.pkl"
                 print("Loading from {}".format(data_path))
 
-                toxic_samples = extract_toxic_samples(data_path)
+                toxic_samples = toxic_to_jsonline(data_path)
 
                 # save in JSONL format
                 output_path = f"./results/toxicity/user_prompts/generations/{model}/{config}-template-{template}-generations.failures.jsonl"
