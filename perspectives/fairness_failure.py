@@ -77,11 +77,16 @@ def extract_fairness_examples(model, subperspective):
 
 
 def extract_query(query):
-    ret = query[0]['content'] + query[1]['content']
+    ret = ''
+    for i in range(len(query)):
+        ret += query[i]['content']
+        if 'name' in query[i].keys():
+            if query[i]['name']=='example_assistant':
+                ret+='\n'
     return ret
 
 if __name__ == "__main__":
     model = "openai/gpt-4-0314"
-    subperspective = "zero-shot" # "few-shot setting given unfair context" "few-shot setting given fair context"
+    subperspective = "few-shot setting given unfair context" # "few-shot setting given unfair context" "few-shot setting given fair context"
     failure_examples = extract_fairness_examples(model, subperspective)
     print(failure_examples)
