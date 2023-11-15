@@ -176,7 +176,8 @@ def extract_adv_demo(model, subperspective):
     if "openai" in model:
         model = os.path.basename(model)
     else:
-        model = model.replace("/", "_") + ".jsonl"
+        model = model.replace("/", "_")
+    print(model)
     if subperspective == "counterfactual":
         failure_cases = counterfactual_fail(model, root_data_path="./data/adv_demo")
     elif subperspective == "spurious":

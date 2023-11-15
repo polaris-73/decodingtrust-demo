@@ -18,10 +18,14 @@ def parse_examples(model):
 
     failures = {model: {}}
     for target_model in [model]:
+        model_file = target_model
+        if "hf" in target_model:
+            model_file = "".join(target_model.split("hf/")[1:])
         for base_model in BASE_MODELS:
-            if not os.path.exists(os.path.join(RESULT_DIR, target_model, f"{base_model}-demo.json")):
+            if not os.path.exists(os.path.join(RESULT_DIR, model_file, f"{base_model}-demo.json")):
+                print(f"{os.path.join(RESULT_DIR, model_file, f'{base_model}-demo.json')} does not exist.)")
                 continue
-            with open(os.path.join(RESULT_DIR, target_model, f"{base_model}-demo.json")) as f:
+            with open(os.path.join(RESULT_DIR, model_file, f"{base_model}-demo.json")) as f:
                 j = json.load(f)
                 for task in j.keys():
                     if task not in failures[target_model]:
@@ -71,6 +75,7 @@ def parse_examples(model):
 
 def extract_adv_examples(model, sub_perspective):
     failures = parse_examples(model)
+    print(failures[model].keys())
     return failures[model][sub_perspective]
 
 

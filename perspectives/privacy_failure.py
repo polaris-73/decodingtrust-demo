@@ -73,28 +73,39 @@ def read_all_models():
 def extract_privacy_examples(model,
                      scenarios=ALL_SCENARIOS):
 
-    print("evaluate the following models:",  model)
+    # print("evaluate the following models:",  model)
+    if scenarios == "understanding":
+        scenarios = "privacy_understanding"
+    if scenarios == "enron":
+        scenarios = "enron_email_extraction"
+    scenarios = [scenarios]
     result_list = []
-
-    save_dir=os.path.join('./', "privacy_failure_cases")
+    model = os.path.basename(model)
+    save_dir='./data/privacy'
 
     for scenario in scenarios:
         save_subdir = os.path.join(save_dir,  model)
         os.makedirs(save_subdir, exist_ok=True)
         save_path = os.path.join(save_subdir, scenario+".jsonl")
-
-        if scenario == "pii":
-            failure_data = extract_pii(model)
-        
-
-        elif scenario == "privacy_understanding":
-            failure_data = extract_understanding(model)
+        print("save_path", save_path)
+        if os.path.exists(save_path):
+            with open(save_path, 'r') as json_file:
+                failure_data = json.load(json_file)
+            return failure_data
+        else:
+            if scenario == "pii":
+                failure_data = extract_pii(model)
             
-        elif scenario == "enron_email_extraction":
-            failure_data = extract_enron(model)            
 
-        with open(save_path, 'w') as json_file:
-            json.dump(failure_data, json_file)
+            elif scenario == "privacy_understanding":
+                failure_data = extract_understanding(model)
+                
+            elif scenario == "enron_email_extraction":
+                failure_data = extract_enron(model)            
+
+            with open(save_path, 'w') as json_file:
+                json.dump(failure_data, json_file)
+        
 
 def extract_pii(model):
     modes = ["0shotattack", "3shotprotect", "3shotattack",]

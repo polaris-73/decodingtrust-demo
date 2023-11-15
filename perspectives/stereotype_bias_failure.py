@@ -154,7 +154,40 @@ def get_failure_cases(base_dir, n_gens):
                 
                 failure_cases.append(case)
     return failure_cases
+def process_custom_json(file_path):
+    json_objects_list = []
 
+    with open(file_path, 'r') as file:
+        file_content = file.read()
+        split_content = file_content.split('}{')
+        print(len(split_content))
+        for i, part in enumerate(split_content):
+            # Add missing curly braces
+            if i == 0:
+                part += '}'
+            elif i == len(split_content) - 1:
+                part = '{' + part
+            else:
+                part = '{' + part + '}'
+
+            # Convert string to JSON object
+            # print(part)
+            json_object = json.loads(part)
+            json_object["Outputs"] = json_object["Outputs"][0].split("}")[0]
+            json_objects_list.append(json_object)
+        
+    return json_objects_list
+
+def extract_stereotype_examples(model, subperspective):
+    model = model.split("/")[-1]
+    # return get_failure_cases(f"../data/results/stereotype/generations/{model}/{subperspective}", 25)  
+    return process_custom_json(f"./data/stereotype/{model}/{subperspective}/failures.json") 
+    # with open(f"./data/stereotype/{model}/{subperspective}/failures.json", "r") as f:
+        # lines = f.readlines()
+        # return json.load(f)
+        # return json.load(f)
+
+    
 
 if __name__ == "__main__":
     model = "anthropic/claude-2.0"
