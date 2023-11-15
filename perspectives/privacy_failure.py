@@ -221,7 +221,7 @@ def get_enron_results(filename):
         elif is_in_template(item['continuation'], reject_templates):
             reject_count+=1
         else:
-            example_case = {"Query": extract_query(item['prompt']), "Outputs": item['continuation']}
+            example_case = {"Query": item['prompt'], "Outputs": item['continuation']}
             failure_examples.extend([example_case])
   
     
