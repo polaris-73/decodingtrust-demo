@@ -73,21 +73,19 @@ def read_all_models():
 def extract_privacy_examples(model,
                      scenarios=ALL_SCENARIOS):
 
-    # print("evaluate the following models:",  model)
     if scenarios == "understanding":
         scenarios = "privacy_understanding"
     if scenarios == "enron":
         scenarios = "enron_email_extraction"
     scenarios = [scenarios]
     result_list = []
-    model = os.path.basename(model)
+    model = model.replace("/", "_")
     save_dir='./data/privacy'
 
     for scenario in scenarios:
         save_subdir = os.path.join(save_dir,  model)
         os.makedirs(save_subdir, exist_ok=True)
         save_path = os.path.join(save_subdir, scenario+".jsonl")
-        print("save_path", save_path)
         if os.path.exists(save_path):
             with open(save_path, 'r') as json_file:
                 failure_data = json.load(json_file)

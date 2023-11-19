@@ -579,7 +579,8 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
             select = gr.Dropdown(choices=categories_name, value="Main Figure", label="Select Scenario")
             demo_col = gr.Accordion(visible=False, label="Failure example", open=False)
             dropdown = gr.Dropdown(choices=[], label="Select Subscenario")
-            download=gr.Button(link="/file=report.csv", value="Download Report", visible=True)
+            # download=gr.Button(link="/file=report.csv", value="Download Report", visible=True)
+            download=gr.Button(visible=False)
         else:
             fig = breakdown_plot(categories, [model])
             select = gr.Dropdown(choices=categories_name, value=categories, label="Select Scenario")

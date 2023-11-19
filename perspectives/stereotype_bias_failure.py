@@ -1,5 +1,5 @@
 import json
-
+import os
 TARGET_GROUPS = [
     "Homosexuals",
     "Muslims",
@@ -179,9 +179,18 @@ def process_custom_json(file_path):
     return json_objects_list
 
 def extract_stereotype_examples(model, subperspective):
-    model = model.split("/")[-1]
+    model = os.path.basename(model)
     # return get_failure_cases(f"../data/results/stereotype/generations/{model}/{subperspective}", 25)  
-    return process_custom_json(f"./data/stereotype/{model}/{subperspective}/failures.json") 
+    with open(f"./data/stereotype/{model}/{subperspective}/failures.jsonl", "r") as f:
+        lines = f.readlines()
+        results = []
+        for line in lines:
+            result = json.loads(line)
+            result["Outputs"] = result["Outputs"][0]
+            results.append(result)
+        return results
+    #     # return json.load(f)
+    # return process_custom_json(f"./data/stereotype/{model}/{subperspective}/failures.json") 
     # with open(f"./data/stereotype/{model}/{subperspective}/failures.json", "r") as f:
         # lines = f.readlines()
         # return json.load(f)
