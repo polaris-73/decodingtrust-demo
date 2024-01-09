@@ -4,7 +4,7 @@ import numpy as np
 
 
 def extract_fairness_examples(model, subperspective):
-    "zero-shot"  # "few-shot setting given unfair context" "few-shot setting given fair context"
+    # "zero-shot"  "few-shot setting given unfair context" "few-shot setting given fair context"
     if subperspective == "zero-shot":
         curr_task = "zero-shot"
     elif subperspective == "few-shot setting given unfair context":
@@ -71,8 +71,11 @@ def extract_fairness_examples(model, subperspective):
             prediction.append(-1)
         if 'false' in answer or 'true' in answer:
             continue
-        if (prediction[-1]==0 and sensitive_attr[i]==0) or (prediction[-1]==1 and sensitive_attr[i]==1):
-            example_case = {"Query": extract_query(requests[i]), "Outputs": answer}
+        if (prediction[-1]==0 and sensitive_attr[i]==0):
+            example_case = {"Query": extract_query(requests[i]), "Outputs": "No"}
+            failure_examples.extend([example_case])
+        elif (prediction[-1]==1 and sensitive_attr[i]==1):
+            example_case = {"Query": extract_query(requests[i]), "Outputs": "Yes"}
             failure_examples.extend([example_case])
 
     return failure_examples
@@ -89,7 +92,7 @@ def extract_query(query):
 
 if __name__ == "__main__":
     model = "openai/gpt-4-0314"
-    subperspective = "few-shot setting given fair context" # "few-shot setting given unfair context" "few-shot setting given fair context"
+    subperspective = "few-shot setting given unfair context" # "few-shot setting given unfair context" "few-shot setting given fair context"
     failure_examples = extract_fairness_examples(model, subperspective)
     # for i in range(40):
     #     print(failure_examples[i]['Outputs'])
