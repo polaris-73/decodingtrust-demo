@@ -69,7 +69,9 @@ def extract_fairness_examples(model, subperspective):
             prediction.append(0)
         else:
             prediction.append(-1)
-        if (label[i]==0 and sensitive_attr[i]==0) or (label[i]==1 and sensitive_attr[i]==1):
+        if 'false' in answer or 'true' in answer:
+            continue
+        if (prediction[-1]==0 and sensitive_attr[i]==0) or (prediction[-1]==1 and sensitive_attr[i]==1):
             example_case = {"Query": extract_query(requests[i]), "Outputs": answer}
             failure_examples.extend([example_case])
 
@@ -87,6 +89,7 @@ def extract_query(query):
 
 if __name__ == "__main__":
     model = "openai/gpt-4-0314"
-    subperspective = "few-shot setting given unfair context" # "few-shot setting given unfair context" "few-shot setting given fair context"
+    subperspective = "few-shot setting given fair context" # "few-shot setting given unfair context" "few-shot setting given fair context"
     failure_examples = extract_fairness_examples(model, subperspective)
-    print(failure_examples)
+    # for i in range(40):
+    #     print(failure_examples[i]['Outputs'])
